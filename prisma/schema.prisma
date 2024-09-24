@@ -1,0 +1,248 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum AdminStatus {
+  Active @map("active")
+
+  @@map("admin_status")
+}
+
+model Admin {
+  id           Int         @id @default(autoincrement())
+  firstname    String
+  lastname     String
+  email        String      @unique
+  profileImage String?     @map("profile_image")
+  status       AdminStatus @default(Active)
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+  meta         AdminMeta?
+
+  @@map("admin")
+}
+
+model AdminMeta {
+  passwordSalt String? @map("password_salt")
+  passwordHash String? @map("password_hash")
+  admin        Admin   @relation(fields: [adminId], references: [id])
+  adminId      Int     @unique() @map("admin_id")
+
+  @@map("admin_meta")
+}
+
+enum UserStatus {
+  Active  @map("active")
+  Blocked @map("blocked")
+
+  @@map("user_status")
+}
+
+model User {
+  id             Int             @id @default(autoincrement())
+  firstname      String
+  lastname       String
+  username       String?         @unique
+  email          String          @unique
+  dialCode       String?         @map("dial_code")
+  mobile         String?         @unique
+  profileImage   String?         @map("profile_image")
+  isVerified     Boolean         @default(false) @map("is_verified")
+  country        String?
+  status         UserStatus      @default(Active)
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  meta           UserMeta?
+  settings       UserSetting[]
+  masterAccounts MasterAccount[] @relation("UserToMaster")
+  // Receipt       Receipt[]
+  // Voucher       Voucher[]
+  // MasterAccount  MasterAccount[]
+
+  @@map("user")
+}
+
+model UserMeta {
+  googleId     String? @unique @map("google_id")
+  passwordSalt String? @map("password_salt")
+  passwordHash String? @map("password_hash")
+  user         User    @relation(fields: [userId], references: [id])
+  userId       Int     @unique() @map("user_id")
+
+  @@map("user_meta")
+}
+
+enum OtpTransport {
+  Email  @map("email")
+  Mobile @map("mobile")
+
+  @@map("otp_transport")
+}
+
+model Otp {
+  code             String
+  attempt          Int          @default(1) @db.SmallInt
+  lastSentAt       DateTime     @default(now()) @map("last_sent_at")
+  retries          Int          @default(0) @db.SmallInt
+  transport        OtpTransport
+  target           String
+  lastCodeVerified Boolean      @default(false) @map("last_code_verified")
+  blocked          Boolean      @default(false)
+
+  @@unique([transport, target])
+  @@map("otp")
+}
+
+enum SettingType {
+  Binary       @map("binary")
+  MultiSelect  @map("multi_select")
+  SingleSelect @map("single_select")
+
+  @@map("setting_type")
+}
+
+enum SettingContext {
+  User   @map("user")
+  System @map("System")
+
+  @@map("setting_context")
+}
+
+model Setting {
+  id               Int             @id @default(autoincrement())
+  mappedTo         String          @map("mapped_to")
+  text             String          @default("")
+  description      String          @default("")
+  type             SettingType
+  context          SettingContext
+  default          Json
+  isDefinedOptions Boolean         @map("is_defined_options")
+  subSettings      Setting[]       @relation("SubSettings")
+  dependsOn        Setting?        @relation("SubSettings", fields: [parentId], references: [id])
+  parentId         Int?            @map("parent_id")
+  options          SettingOption[]
+  userSettings     UserSetting[]
+  systemSettings   SystemSetting[]
+
+  @@unique([context, mappedTo])
+  @@map("setting")
+}
+
+model SettingOption {
+  id        Int     @id @default(autoincrement())
+  text      String  @default("")
+  value     String
+  setting   Setting @relation(fields: [settingId], references: [id])
+  settingId Int     @map("setting_id")
+
+  @@unique([settingId, value])
+  @@map("setting_option")
+}
+
+model UserSetting {
+  selection Json
+  user      User    @relation(fields: [userId], references: [id])
+  userId    Int     @map("user_id")
+  setting   Setting @relation(fields: [settingId], references: [id])
+  settingId Int     @map("setting_id")
+
+  @@id([userId, settingId])
+  @@map("user_setting")
+}
+
+model SystemSetting {
+  selection Json
+  setting   Setting @relation(fields: [settingId], references: [id])
+  settingId Int     @map("setting_id")
+
+  @@id([settingId])
+  @@map("system_setting")
+}
+
+model MasterAccount {
+  id                Int           @id @default(autoincrement())
+  accountHolderName String
+  createdAt         DateTime?     @default(now()) @map("created_at")
+  updatedAt         DateTime?     @updatedAt @map("updated_at")
+  subAccounts       SubAccount[]  @relation("MasterToSub")
+  transactions      Transaction[] @relation("MasterToTransaction")
+  // userId            Int?          @map("user_id")
+  // user              User?         @relation(fields: [userId], references: [id])
+
+  User User[] @relation("UserToMaster")
+}
+
+model SubAccount {
+  id              Int           @id @default(autoincrement())
+  masterAccountId Int
+  bankName        String
+  createdAt       DateTime?     @default(now()) @map("created_at")
+  updatedAt       DateTime?     @updatedAt @map("updated_at")
+  masterAccount   MasterAccount @relation(fields: [masterAccountId], references: [id], name: "MasterToSub")
+  transactions    Transaction[] @relation("SubToTransaction")
+}
+
+model Receipt {
+  id           Int           @id @default(autoincrement())
+  amount       Decimal
+  description  String
+  isAssigned   Boolean       @default(false)
+  date         DateTime      @db.Date
+  transactions Transaction[] @relation("ReceiptToTransaction")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  Voucher      Voucher[]
+
+  @@map("receipt")
+}
+
+model Voucher {
+  id           Int           @id @default(autoincrement())
+  amount       Decimal
+  description  String
+  date         DateTime      @db.Date
+  transactions Transaction[] @relation("VoucherToTransaction")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @default(now()) @map("updated_at")
+  receipt      Receipt?      @relation(fields: [receiptId], references: [id])
+  receiptId    Int?          @map("receipt_id")
+
+  // user         User          @relation(fields: [userId], references: [id])
+  @@map("voucher")
+}
+
+model Transaction {
+  id              Int            @id @default(autoincrement())
+  amount          Decimal
+  receiptId       Int?
+  voucherId       Int?
+  subAccountId    Int?
+  adat            Float?
+  commission      Float?
+  entryType       EntryType
+  entryId         Int?
+  referenceId     String?
+  masterAccountId Int?
+  receipt         Receipt?       @relation(fields: [receiptId], references: [id], name: "ReceiptToTransaction")
+  voucher         Voucher?       @relation(fields: [voucherId], references: [id], name: "VoucherToTransaction")
+  subAccount      SubAccount?    @relation(fields: [subAccountId], references: [id], name: "SubToTransaction")
+  masterAccount   MasterAccount? @relation(fields: [masterAccountId], references: [id], name: "MasterToTransaction")
+}
+
+enum EntryType {
+  DEBIT
+  CREDIT
+}
+
+enum RoleType {
+  USER
+  ADMIN
+}

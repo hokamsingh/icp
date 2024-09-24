@@ -1,0 +1,45 @@
+version: '3'
+services:
+  postgres:
+    image: postgres:16
+    container_name: nestjs-app-postgres
+    restart: unless-stopped
+    ports:
+      - ${POSTGRES_PORT}:5432
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - ${POSTGRES_DATA_VOLUME}:/var/lib/postgresql/data
+  redis:
+    image: redis/redis-stack-server
+    container_name: nestjs-app-redis
+    restart: unless-stopped
+    ports:
+      - ${REDIS_PORT}:6379
+    environment:
+      - REDIS_ARGS=--requirepass ${REDIS_PASSWORD}
+    volumes:
+      - ${REDIS_DATA_VOLUME}:/data
+  nestjs-app:
+    image: nestjs-app-${APP_ENV}
+    build:
+      context: .
+      target: nestjs-app
+      args:
+        - PORT:${PORT}
+    container_name: nestjs-app-${APP_ENV}
+    restart: unless-stopped
+    ports:
+      - ${PORT}:${PORT}
+    # Uncomment this to disable run application on standalone mode
+    # depends_on:
+    #   - postgres
+    #   - redis
+    volumes:
+      - .env:/nestjs-app/.env:ro
+      - ${STORAGE_DATA_VOLUME}:/nestjs-app/${STORAGE_DIR}
+      - ${LOG_VOLUME}:/nestjs-app/${LOG_DIR}
+networks:
+  default:
+    name: nestjs-app
