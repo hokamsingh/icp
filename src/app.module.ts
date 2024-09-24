@@ -12,6 +12,8 @@ import { AuthModule } from './auth';
 import { RedisModule } from './redis';
 import { MasterAccountModule } from './master-account/master-account.module';
 import { TransactionModule } from './transaction/transaction.module';
+import { CanisterService } from './canister/canister.service';
+import { GameGateway, GamesGatewayModule } from './gateways';
 
 @Module({
   imports: [
@@ -30,6 +32,7 @@ import { TransactionModule } from './transaction/transaction.module';
     AuthModule,
     MasterAccountModule,
     TransactionModule,
+    GamesGatewayModule,
   ],
   controllers: [AppController],
   providers: [
@@ -37,6 +40,8 @@ import { TransactionModule } from './transaction/transaction.module';
       provide: APP_INTERCEPTOR,
       useClass: AppCacheInterceptor,
     },
+    CanisterService,
+    GameGateway,
   ],
 })
 export class AppModule {}

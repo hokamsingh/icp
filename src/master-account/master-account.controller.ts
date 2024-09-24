@@ -1,20 +1,6 @@
 /* eslint-disable prettier/prettier */
 import { MasterAccountService } from './master-account.service';
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  ParseIntPipe,
-  ParseUUIDPipe,
-  Patch,
-  Post,
-  Put,
-  Query,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 
 import { CreateMasterAccountDto, CreateSubAccountDto } from './dto';
 // import { JwtAuthGuard, ValidatedUser } from '@Common';
